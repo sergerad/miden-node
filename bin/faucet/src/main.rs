@@ -123,9 +123,16 @@ async fn main() -> anyhow::Result<()> {
                 )
                 .with_state(faucet_state);
 
-            let socket_addr = config.endpoint.socket_addrs(|| None)?.into_iter().next().ok_or(
-                anyhow::anyhow!("Couldn't get any socket addrs for endpoint: {}", config.endpoint),
-            )?;
+            let socket_addr = (
+                config
+                    .endpoint
+                    .host()
+                    .ok_or(anyhow::anyhow!("Config endpoint with no host: {}", config.endpoint))?,
+                config
+                    .endpoint
+                    .port_u16()
+                    .ok_or(anyhow::anyhow!("Config endpoint with no port: {}", config.endpoint))?,
+            );
             let listener =
                 TcpListener::bind(socket_addr).await.context("Failed to bind TCP listener")?;
 

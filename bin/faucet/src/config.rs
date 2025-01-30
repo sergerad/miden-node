@@ -5,7 +5,7 @@ use std::{
 
 use miden_node_utils::config::{DEFAULT_FAUCET_SERVER_PORT, DEFAULT_NODE_RPC_PORT};
 use serde::{Deserialize, Serialize};
-use url::Url;
+use tonic::transport::Uri;
 
 // Faucet config
 // ================================================================================================
@@ -16,13 +16,15 @@ pub const DEFAULT_FAUCET_ACCOUNT_PATH: &str = "accounts/faucet.mac";
 /// Default timeout for RPC requests
 pub const DEFAULT_RPC_TIMEOUT_MS: u64 = 10000;
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct FaucetConfig {
     /// Endpoint of the faucet in the format `<ip>:<port>`
-    pub endpoint: Url,
+    #[serde(with = "http_serde::uri")]
+    pub endpoint: Uri,
     /// Node RPC gRPC endpoint in the format `http://<host>[:<port>]`
-    pub node_url: Url,
+    #[serde(with = "http_serde::uri")]
+    pub node_url: Uri,
     /// Timeout for RPC requests in milliseconds
     pub timeout_ms: u64,
     /// Possible options on the amount of asset that should be dispersed on each faucet request
@@ -43,9 +45,9 @@ impl Display for FaucetConfig {
 impl Default for FaucetConfig {
     fn default() -> Self {
         Self {
-            endpoint: Url::parse(format!("http://0.0.0.0:{DEFAULT_FAUCET_SERVER_PORT}").as_str())
+            endpoint: Uri::try_from(format!("http://0.0.0.0:{DEFAULT_FAUCET_SERVER_PORT}"))
                 .unwrap(),
-            node_url: Url::parse(format!("http://127.0.0.1:{DEFAULT_NODE_RPC_PORT}").as_str())
+            node_url: Uri::try_from(format!("http://127.0.0.1:{DEFAULT_NODE_RPC_PORT}").as_str())
                 .unwrap(),
             timeout_ms: DEFAULT_RPC_TIMEOUT_MS,
             asset_amount_options: vec![100, 500, 1000],
@@ -65,8 +67,11 @@ mod tests {
         // Default does not panic
         let config = FaucetConfig::default();
         // Default can bind
-        let socket_addrs = config.endpoint.socket_addrs(|| None).unwrap();
-        let socket_addr = socket_addrs.into_iter().next().unwrap();
-        let _listener = TcpListener::bind(socket_addr).await.unwrap();
+        let _listener = TcpListener::bind((
+            config.endpoint.host().unwrap(),
+            config.endpoint.port_u16().unwrap(),
+        ))
+        .await
+        .unwrap();
     }
 }

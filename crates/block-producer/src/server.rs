@@ -64,15 +64,17 @@ impl BlockProducer {
             .map_err(|err| ApiError::DatabaseConnectionFailed(err.to_string()))?;
         let chain_tip = latest_header.block_num();
 
-        let rpc_listener = config
-            .endpoint
-            .socket_addrs(|| None)
-            .map_err(ApiError::EndpointToSocketFailed)?
-            .into_iter()
-            .next()
-            .ok_or_else(|| ApiError::AddressResolutionFailed(config.endpoint.to_string()))
-            .map(TcpListener::bind)?
-            .await?;
+        let socket_addr = (
+            config
+                .endpoint
+                .host()
+                .ok_or(anyhow::anyhow!("Config endpoint with no host: {}", config.endpoint))?,
+            config
+                .endpoint
+                .port_u16()
+                .ok_or(anyhow::anyhow!("Config endpoint with no port: {}", config.endpoint))?,
+        );
+        let rpc_listener = TcpListener::bind(socket_addr).await?;
 
         info!(target: COMPONENT, "Server initialized");
 

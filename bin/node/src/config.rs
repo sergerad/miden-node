@@ -2,7 +2,7 @@ use miden_node_block_producer::config::BlockProducerConfig;
 use miden_node_rpc::config::RpcConfig;
 use miden_node_store::config::StoreConfig;
 use serde::{Deserialize, Serialize};
-use url::Url;
+use tonic::transport::Uri;
 
 /// Node top-level configuration.
 #[derive(Clone, Default, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
@@ -17,7 +17,7 @@ pub struct NodeConfig {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct NormalizedRpcConfig {
-    endpoint: Url,
+    endpoint: Uri,
 }
 
 /// A specialized variant of [`BlockProducerConfig`] with redundant fields within [`NodeConfig`]
@@ -25,7 +25,7 @@ struct NormalizedRpcConfig {
 #[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 struct NormalizedBlockProducerConfig {
-    endpoint: Url,
+    endpoint: Uri,
     verify_tx_proofs: bool,
 }
 
@@ -75,7 +75,7 @@ mod tests {
     use figment::Jail;
     use miden_node_store::config::StoreConfig;
     use miden_node_utils::config::load_config;
-    use url::Url;
+    use tonic::transport::Uri;
 
     use super::NodeConfig;
     use crate::{
@@ -110,14 +110,14 @@ mod tests {
                 config,
                 NodeConfig {
                     block_producer: NormalizedBlockProducerConfig {
-                        endpoint: Url::parse("http://127.0.0.1:8080").unwrap(),
+                        endpoint: Uri::from_static("http://127.0.0.1:8080"),
                         verify_tx_proofs: true
                     },
                     rpc: NormalizedRpcConfig {
-                        endpoint: Url::parse("http://127.0.0.1:8080").unwrap(),
+                        endpoint: Uri::from_static("http://127.0.0.1:8080"),
                     },
                     store: StoreConfig {
-                        endpoint: Url::parse("https://127.0.0.1:8080").unwrap(),
+                        endpoint: Uri::from_static("https://127.0.0.1:8080"),
                         database_filepath: "local.sqlite3".into(),
                         genesis_filepath: "genesis.dat".into(),
                         blockstore_dir: "blocks".into()

@@ -4,19 +4,22 @@ use miden_node_utils::config::{
     DEFAULT_BLOCK_PRODUCER_PORT, DEFAULT_NODE_RPC_PORT, DEFAULT_STORE_PORT,
 };
 use serde::{Deserialize, Serialize};
-use url::Url;
+use tonic::transport::Uri;
 
 // Main config
 // ================================================================================================
 
-#[derive(Clone, Eq, PartialEq, Ord, PartialOrd, Hash, Debug, Serialize, Deserialize)]
+#[derive(Clone, Eq, PartialEq, Hash, Debug, Serialize, Deserialize)]
 #[serde(deny_unknown_fields)]
 pub struct RpcConfig {
-    pub endpoint: Url,
+    #[serde(with = "http_serde::uri")]
+    pub endpoint: Uri,
     /// Store gRPC endpoint in the format `http://<host>[:<port>]`.
-    pub store_url: Url,
+    #[serde(with = "http_serde::uri")]
+    pub store_url: Uri,
     /// Block producer gRPC endpoint in the format `http://<host>[:<port>]`.
-    pub block_producer_url: Url,
+    #[serde(with = "http_serde::uri")]
+    pub block_producer_url: Uri,
 }
 
 impl RpcConfig {
@@ -37,13 +40,11 @@ impl Display for RpcConfig {
 impl Default for RpcConfig {
     fn default() -> Self {
         Self {
-            endpoint: Url::parse(format!("http://0.0.0.0:{DEFAULT_NODE_RPC_PORT}").as_str())
-                .unwrap(),
-            store_url: Url::parse(format!("http://127.0.0.1:{DEFAULT_STORE_PORT}").as_str())
-                .unwrap(),
-            block_producer_url: Url::parse(
-                format!("http://127.0.0.1:{DEFAULT_BLOCK_PRODUCER_PORT}").as_str(),
-            )
+            endpoint: Uri::try_from(format!("http://0.0.0.0:{DEFAULT_NODE_RPC_PORT}")).unwrap(),
+            store_url: Uri::try_from(format!("http://127.0.0.1:{DEFAULT_STORE_PORT}")).unwrap(),
+            block_producer_url: Uri::try_from(format!(
+                "http://127.0.0.1:{DEFAULT_BLOCK_PRODUCER_PORT}"
+            ))
             .unwrap(),
         }
     }
@@ -60,8 +61,11 @@ mod tests {
         // Default does not panic
         let config = RpcConfig::default();
         // Default can bind
-        let socket_addrs = config.endpoint.socket_addrs(|| None).unwrap();
-        let socket_addr = socket_addrs.into_iter().next().unwrap();
-        let _listener = TcpListener::bind(socket_addr).await.unwrap();
+        let _listener = TcpListener::bind((
+            config.endpoint.host().unwrap(),
+            config.endpoint.port_u16().unwrap(),
+        ))
+        .await
+        .unwrap();
     }
 }
